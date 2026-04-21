@@ -18,6 +18,13 @@
       color: black;
       white-space: pre-line;
     }
+
+    canvas {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 
@@ -42,7 +49,9 @@
 <hr>
 
 <h3>Accuracy vs Channel Error Rate</h3>
-<canvas id="chart"></canvas>
+<div style="width:900px;max-width:100%;">
+  <canvas id="chart"></canvas>
+</div>
 
 <script>
 let chart;
@@ -82,19 +91,81 @@ async function loadGraph(msg) {
 
   if (chart) chart.destroy();
 
-  chart = new Chart(chartCanvas, {
+  const ctx = chartCanvas.getContext("2d");
+
+  // Gradient color
+  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+  gradient.addColorStop(0, "rgba(75,192,192,0.6)");
+  gradient.addColorStop(1, "rgba(75,192,192,0.05)");
+
+  chart = new Chart(ctx, {
     type: "line",
     data: {
       labels: data.map(d => d.error_rate),
       datasets: [{
-        label: "Accuracy vs Error Rate (Fixed Coding)",
+        label: "Accuracy vs Channel Error Rate",
         data: data.map(d => d.accuracy),
-        borderWidth: 2
+        borderColor: "rgba(75,192,192,1)",
+        backgroundColor: gradient,
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: "#fff",
+        pointBorderWidth: 2
       }]
     },
+
     options: {
+      responsive: true,
+      animation: {
+        duration: 1200,
+        easing: "easeInOutQuart"
+      },
+
+      plugins: {
+        legend: {
+          labels: {
+            font: {
+              size: 14
+            }
+          }
+        },
+
+        tooltip: {
+          backgroundColor: "#222",
+          titleFont: { size: 14 },
+          bodyFont: { size: 13 },
+          padding: 10,
+          cornerRadius: 6
+        }
+      },
+
       scales: {
-        y: { min: 0, max: 1 }
+        x: {
+          title: {
+            display: true,
+            text: "Channel Error Rate",
+            font: { size: 14 }
+          },
+          grid: {
+            color: "rgba(0,0,0,0.05)"
+          }
+        },
+
+        y: {
+          min: 0,
+          max: 1,
+          title: {
+            display: true,
+            text: "Accuracy",
+            font: { size: 14 }
+          },
+          grid: {
+            color: "rgba(0,0,0,0.05)"
+          }
+        }
       }
     }
   });

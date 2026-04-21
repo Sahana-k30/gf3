@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=C:\Users\admin\Desktop\GF3 demo\venv
+set VIRTUAL_ENV=C:\Users\admin\Desktop\gf3_new\gf3\venv
 
 if not defined PROMPT set PROMPT=$P$G
 
