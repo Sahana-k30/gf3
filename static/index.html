@@ -5,53 +5,40 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
+    :root{ --bg:#0f172a; --card:#0b1220; --muted:#9aa4b2; --accent:#06b6d4 }
+    html,body{ height:100%; }
+    body{
+      margin:0; min-height:100%; font-family:Inter,Segoe UI,Arial,sans-serif; background: linear-gradient(180deg,#071029 0%, #061829 100%); color:#e6eef6; padding:28px; box-sizing:border-box;
     }
-    .semantic {
-      color: orange;
-      white-space: pre-line;
-      font-weight: bold;
-    }
-    .normal {
-      color: black;
-      white-space: pre-line;
-    }
-
-    canvas {
-      background: #ffffff;
-      border-radius: 10px;
-      padding: 10px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
-    }
+    .panel{ max-width:1000px; margin:0 auto; }
+    .controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px }
+    input[type=text], input[type=number]{ background:transparent; border:1px solid rgba(255,255,255,0.08); color:inherit; padding:10px 12px; border-radius:8px }
+    button{ background:var(--accent); color:#052026; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600 }
+    #composeBtn{ position:fixed; right:18px; bottom:18px; background:#0ea5a4; color:#042226; padding:10px 14px; border-radius:999px; box-shadow:0 8px 24px rgba(2,6,23,0.5); display:none }
+    h2{ font-size:18px; margin:0 8px 0 0 }
+    canvas{ background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; box-shadow: 0 8px 28px rgba(2,6,23,0.6); }
+    #graphTitle{ margin:8px 0 12px 0; color:var(--muted) }
   </style>
 </head>
 
 <body>
 
-<h2>Semantic-Aware Adaptive GF(3) Communication</h2>
+<div class="panel">
+  <div class="controls" id="controls">
+    <h2>Semantic-Aware Adaptive GF(3) Communication</h2>
+    <div style="flex:1"></div>
+    <input id="msg" placeholder="Enter message" type="text" style="min-width:360px">
+    <input id="err" type="number" step="0.05" value="0.1" style="width:100px">
+    <button id="sendBtn" onclick="send()">Send</button>
+  </div>
 
-<input id="msg" placeholder="Enter message" size="50">
-<input id="err" type="number" step="0.05" value="0.1">
-<button onclick="send()">Send</button>
-
-<hr>
-
-<p><b>Output Mode:</b> <span id="mode"></span></p>
-<p><b>Received Output:</b></p>
-<div id="out" class="normal"></div>
-
-<p><b>CRC:</b> <span id="crc"></span></p>
-<p><b>Confidence:</b> <span id="conf"></span></p>
-<p><b>Adaptive Level:</b> <span id="level"></span></p>
-
-<hr>
-
-<h3>Accuracy vs Channel Error Rate</h3>
-<div style="width:900px;max-width:100%;">
-  <canvas id="chart"></canvas>
+  <h3 id="graphTitle">Accuracy vs Channel Error Rate</h3>
+  <div style="width:100%;">
+    <canvas id="chart"></canvas>
+  </div>
 </div>
+
+<button id="composeBtn" title="Compose new message">Compose</button>
 
 <script>
 let chart;
@@ -66,22 +53,21 @@ async function send() {
     body: JSON.stringify({ message: msg, error_rate: err })
   });
 
-  const data = await res.json();
+  await res.json();
 
-  // 🔥 SEMANTIC-AWARE DISPLAY
-  out.innerText = data.display;
+  // Alert user and hide non-graph UI so client shows only the graph
+  alert('Message sent to server');
+  msgInput.value = "";
 
-  if (data.mode === "SEMANTIC") {
-    out.className = "semantic";
-  } else {
-    out.className = "normal";
-  }
+  // Hide controls, show a compose button to re-enable inputs
+  const controls = document.getElementById('controls');
+  const compose = document.getElementById('composeBtn');
+  if (controls) controls.style.display = 'none';
+  if (compose) compose.style.display = 'inline-block';
+  const title = document.getElementById('graphTitle');
+  if (title) title.style.marginTop = '12px';
 
-  mode.innerText = data.mode;
-  crc.innerText = data.crc_status;
-  conf.innerText = data.confidence;
-  level.innerText = data.adaptive_level;
-
+  // Load graph for the sent message
   loadGraph(msg);
 }
 
@@ -174,12 +160,15 @@ async function loadGraph(msg) {
 // DOM references
 const msgInput = document.getElementById("msg");
 const errInput = document.getElementById("err");
-const out = document.getElementById("out");
-const mode = document.getElementById("mode");
-const crc = document.getElementById("crc");
-const conf = document.getElementById("conf");
-const level = document.getElementById("level");
 const chartCanvas = document.getElementById("chart");
+
+const composeBtn = document.getElementById('composeBtn');
+composeBtn.addEventListener('click', ()=>{
+  const controls = document.getElementById('controls');
+  if (controls) controls.style.display = 'flex';
+  composeBtn.style.display = 'none';
+  msgInput.focus();
+});
 </script>
 
 </body>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Server - Received Messages</title>
+  <style>
+    :root{ --bg1:#071029; --bg2:#061829; --card:#071825; --muted:#9aa4b2; --accent:#06b6d4 }
+    body { font-family: Inter, Arial, sans-serif; margin: 0; min-height:100vh; background: linear-gradient(180deg,var(--bg1),var(--bg2)); color:#e6eef6; }
+    .wrap{ max-width:1000px; margin:24px auto; padding:20px }
+    header{ display:flex; align-items:center; gap:12px; margin-bottom:12px }
+    h2{ margin:0; font-size:20px }
+    #controls { margin-left:auto; display:flex; gap:8px }
+    button{ background:var(--accent); color:#042226; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:700 }
+    button.secondary{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04) }
+    #listWrap{ background:transparent; }
+    .msg { background: var(--card); border: 1px solid rgba(255,255,255,0.02); padding: 14px; margin-bottom: 12px; border-radius: 12px; box-shadow:0 10px 30px rgba(2,6,23,0.6) }
+    .meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; display:flex; gap:12px; align-items:center }
+    .display { white-space: pre-line; font-weight: 600; font-size:15px; color:#e6eef6 }
+    .crc-pass { color: #7ee787; font-weight:700 }
+    .crc-fail { color: #ff9b9b; font-weight:700 }
+    #status { margin-bottom: 12px; color:var(--muted) }
+    #list{ max-height:65vh; overflow:auto; padding-right:8px }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h2>Server - Received Messages</h2>
+      <div id="controls">
+        <button id="pauseBtn">Pause</button>
+        <button id="clearView" class="secondary">Clear View</button>
+      </div>
+    </header>
+    <div id="status">Waiting for messages...</div>
+    <div id="listWrap"><div id="list"></div></div>
+  </div>
+
+  <script>
+    const list = document.getElementById('list');
+    const status = document.getElementById('status');
+
+    let polling = true;
+    let pollId = null;
+
+    async function fetchMessages() {
+      try {
+        const res = await fetch('/api/server-messages?limit=100');
+        const data = await res.json();
+        render(data);
+        status.innerText = `Last update: ${new Date().toLocaleTimeString()}`;
+      } catch (err) {
+        status.innerText = 'Error fetching messages';
+      }
+    }
+
+    function render(messages) {
+      list.innerHTML = '';
+      if (!messages || messages.length === 0) {
+        list.innerHTML = '<div>No messages received yet.</div>';
+        return;
+      }
+
+      for (const m of messages) {
+        const el = document.createElement('div');
+        el.className = 'msg';
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const crcCls = m.crc_status === 'PASS' ? 'crc-pass' : 'crc-fail';
+        meta.innerHTML = `<b>CRC:</b> <span class="${crcCls}">${m.crc_status}</span> &nbsp;` +
+                         `<b>Confidence:</b> ${m.confidence} &nbsp;` +
+                         `<b>Mode:</b> ${m.adaptive_level}`;
+
+        const disp = document.createElement('div');
+        disp.className = 'display';
+        disp.innerText = m.display || m.decoded || m.original || '';
+
+        el.appendChild(meta);
+        el.appendChild(disp);
+        list.appendChild(el);
+      }
+    }
+
+    function startPolling(){
+      if (pollId) return;
+      pollId = setInterval(fetchMessages, 1500);
+      polling = true;
+      document.getElementById('pauseBtn').innerText = 'Pause';
+    }
+
+    function stopPolling(){
+      if (!pollId) return;
+      clearInterval(pollId);
+      pollId = null;
+      polling = false;
+      document.getElementById('pauseBtn').innerText = 'Resume';
+    }
+
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{
+      if (polling) stopPolling(); else startPolling();
+    });
+
+    document.getElementById('clearView').addEventListener('click', async ()=>{
+      try{
+        const res = await fetch('/api/server-messages/clear', { method: 'POST' });
+        const data = await res.json();
+        if (data && data.cleared) {
+          document.getElementById('list').innerHTML = '';
+          status.innerText = 'Cleared server messages.';
+        } else {
+          status.innerText = 'Failed to clear messages';
+        }
+      } catch (err) {
+        status.innerText = 'Error clearing messages';
+      }
+    });
+
+    // Polling start
+    fetchMessages();
+    startPolling();
+  </script>
+</body>
+</html>
