@@ -1,1 +1,11 @@
 {"ts": 1776795091.392419, "bin": 0.1, "success": true, "iterations": 1, "damping": 0.3, "check_weight": 1.0}
+{"ts": 1776873994.9828873, "bin": 0.1, "success": true, "iterations": 1, "damping": 0.3, "check_weight": 1.0}
+{"ts": 1776874101.7883441, "bin": 0.3, "success": false, "iterations": 1, "damping": 0.3, "check_weight": 1.0}
+{"ts": 1776874143.461508, "bin": 0.2, "success": true, "iterations": 1, "damping": 0.3, "check_weight": 1.0}
+{"ts": 1776874163.6931984, "bin": 0.3, "success": true, "iterations": 1, "damping": 0.3, "check_weight": 1.0}
+{"ts": 1776874183.564421, "bin": 0.35, "success": false, "iterations": 1, "damping": 0.3, "check_weight": 1.0}
+{"ts": 1776878881.1688635, "bin": 0.25, "success": false, "iterations": 2, "damping": 0.35, "check_weight": 1.1}
+{"ts": 1776878906.6828294, "bin": 0.2, "success": true, "iterations": 2, "damping": 0.35, "check_weight": 1.1}
+{"ts": 1776878925.5113347, "bin": 0.25, "success": false, "iterations": 2, "damping": 0.35, "check_weight": 1.1}
+{"ts": 1776878948.796834, "bin": 0.25, "success": true, "iterations": 2, "damping": 0.35, "check_weight": 1.1}
+{"ts": 1776878970.664982, "bin": 0.3, "success": true, "iterations": 2, "damping": 0.35, "check_weight": 1.1}

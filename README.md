@@ -1,318 +1,118 @@
-# GF(3) LDPC Error Correction System
+# GF3 Adaptive Redundancy Messaging Demo
 
-A complete implementation of Galois Field (3) Low-Density Parity-Check (LDPC) codes for error detection and correction in digital communications. Supports messages of arbitrary length by internally chunking into 4-symbol blocks.
+This project demonstrates a fault-tolerant messaging pipeline that uses GF(3) symbol encoding, adaptive redundancy, soft iterative decoding, CRC validation, encryption, and a semantic fallback display layer. It is intended as an educational/demo system and a testbed for exploring redundancy vs. channel noise trade-offs.
 
-## 📚 What is GF(3) LDPC?
+**Core idea**: convert bytes → GF(3) symbols → add adaptive repetition/interleaving → simulate noisy channel → perform soft iterative decoding → decrypt + CRC → present decoded text (or semantic summary when confidence is low).
 
-### Galois Field GF(3)
-- A finite field with exactly 3 elements: **{0, 1, 2}**
-- All arithmetic operations (addition, multiplication) are performed modulo 3
-- Provides theoretical foundation for error-correcting codes
+**Quick status**: runs as a FastAPI backend with a small frontend and an included stress test harness.
 
-### LDPC (Low-Density Parity-Check) Codes
-- Linear block codes characterized by a sparse parity-check matrix
-- Excellent error correction performance
-- Used in modern communication standards (WiFi, 5G, satellite communications)
+**Contents**
+- **Features**: lists implemented capabilities and tunable parameters
+- **Architecture & flow**: how data moves through the pipeline
+- **How to run**: setup and common commands
+- **API**: endpoints exposed by the backend
+- **Developer notes**: important files, tuning knobs, and tests
+- **Contributing & License**
 
-### How It Works
-1. **Encoding**: Message is multiplied by generator matrix in GF(3) to produce redundancy
-2. **Transmission**: Codeword travels through noisy channel
-3. **Corruption**: Random errors occur due to channel noise
-4. **Decoding**: Receiver uses syndrome-based detection to find and correct errors
-5. **Verification**: Original message is recovered
+**Features**
+- **Adaptive redundancy**: `AdaptiveGF3Codec` selects repetition depths and runs soft iterative decoding to maximize recovery.
+- **High-redundancy modes**: supports very large repetition depths (e.g., 101, 201) for very noisy channels (~40%+ error rates).
+- **Soft decoding**: likelihood-based min-sum style decoding and iterative selection with damping and reinforcement.
+- **Interleaving**: simple block interleaver/deinterleaver to scatter burst errors.
+- **CRC + symmetric encryption**: messages are protected with a CRC and encrypted before GF(3) conversion so decoding correctness is verified end-to-end.
+- **Semantic fallback**: when confidence is low, the system extracts and displays semantic summary rather than raw (possibly corrupted) text.
+- **Runtime telemetry**: codec adapts parameters and logs events to `logs/codec_events.jsonl` for analysis.
 
-## 🏗️ System Architecture
+**Architecture & Flow**
 
+1. Client sends a plaintext message and requested `error_rate` (simulated channel noise).
+2. Server appends a CRC and encrypts the bytes.
+3. Each encrypted byte is converted to six base-3 symbols (trits).
+4. `AdaptiveGF3Codec.encode()` applies repetition (R) and interleaves the symbols.
+5. Channel noise is simulated with `add_noise()` using the requested error probability.
+6. `AdaptiveGF3Codec.decode_iterative()` performs soft decoding (min-sum style), runs multiple iterations, and returns decoded symbols with an instability/confidence score.
+7. Symbols → bytes → decrypt → CRC check. If CRC passes, the message is trusted; otherwise, semantic extraction may be used to display high-level info.
+
+**How to run (developer)**
+
+- Create and activate a Python virtual environment (Windows PowerShell example):
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
-Frontend (HTML)
-    ↓ (HTTP/REST)
-FastAPI Backend
-    ↓
-GF(3) LDPC Engine
-    ├── Encoder (message → codeword)
-    ├── Noise Simulator
-    └── Decoder (codeword → message)
-```
 
-## 📦 Installation
+- Start the server:
 
-### Prerequisites
-- Python 3.8 or higher
-- pip package manager
-
-### Setup Instructions
-
-1. **Navigate to the project directory**:
-   ```bash
-   cd "C:\Users\admin\Desktop\GF3 demo"
-   ```
-
-2. **Create a virtual environment (recommended)**:
-   ```bash
-   # On Windows Command Prompt
-   python -m venv venv
-   venv\Scripts\activate
-   
-   # On Windows PowerShell
-   python -m venv venv
-   .\venv\Scripts\Activate.ps1
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## 🚀 Running the System
-
-### Start the Backend Server
-
-```bash
+```powershell
 python main.py
 ```
 
-You should see:
-```
-INFO:     Uvicorn running on http://127.0.0.1:8000
-```
+- Run the stress test (exercise adaptive learning):
 
-### Access the Frontend
-
-1. **Option A: Open in Browser**
-   - Navigate to: `http://localhost:8000` in your web browser
-   - Or directly to the frontend file if served locally
-
-2. **Option B: Serve HTML Locally**
-   ```bash
-   # Using Python's built-in server (in the project directory)
-   python -m http.server 8001
-   ```
-   Then visit: `http://localhost:8001`
-
-## 🎯 How to Use the Demo
-
-1. **Enter a message** (up to 4 characters)
-   - Example: "test", "hello", "gf3"
-
-2. **Set error rate** (0.0 - 1.0)
-   - 0.15 = 15% chance of error at each bit position
-   - Higher values introduce more corruption
-
-3. **Click "Start Full Process"**
-
-4. **Observe the results**:
-   - **Original Message**: Your input
-   - **Encoded (GF3)**: GF(3) symbols after encoding
-   - **Corrupted by Noise**: Message after channel errors
-   - **Decoded Message**: Recovered message after error correction
-   - **Error Analysis**: Statistics on correction success
-
-## 🔬 Technical Details
-
-### Code Parameters
-- **Message length (k)**: 4 information symbols
-- **Codeword length (n)**: 7 coded symbols
-- **Parity bits (m)**: 3 parity bits
-- **Code rate**: 4/7 ≈ 0.57
-
-### GF(3) Arithmetic
-```python
-Addition (mod 3):     0+1=1, 1+2=0, 2+2=1
-Multiplication (mod 3): 1*2=2, 2*2=1
+```powershell
+python scripts\stress_test.py
 ```
 
-### Encoding Process
-```
-message [m₀, m₁, m₂, m₃] × Generator Matrix G (4×7)
-                        ↓
-         codeword [c₀, c₁, c₂, c₃, c₄, c₅, c₆]
-```
+Or use the provided `run.bat` / `run.ps1` helper scripts.
 
-### Decoding Process
-```
-received codeword × Parity-Check Matrix H (3×7)
-                  ↓
-             syndrome s
-                  ↓
-         (if s ≠ 0, errors detected)
-                  ↓
-         Find error position & correct
-                  ↓
-         recovered message
-```
+**API summary**
 
-## 📊 API Endpoints
+- POST `/api/send` — full pipeline (preferred).
+  - Request JSON: `{ "message": "...", "error_rate": 0.15 }`
+  - Response fields: `original`, `display`, `decoded`, `crc_status`, `confidence`, `adaptive_level`.
 
-### GET `/` or `/api/info`
-Get system information and status
+- GET `/api/error-graph` — runs the pipeline across error-rate bins and returns accuracy per bin (useful for plotting).
 
-### POST `/api/encode`
-Encode a message
-```json
-{
-  "message": "test",
-  "error_probability": 0.15
-}
-```
+- GET `/api/server-messages` — recent decoded messages stored for the server UI.
 
-### POST `/api/process`
-Complete process for a single 4-symbol message block (legacy endpoint). Encodes, corrupts, and decodes one chunk.
-```json
-{
-  "message": "test",
-  "error_probability": 0.15
-}
-```
+- POST `/api/server-messages/clear` — clear stored server messages.
 
-### POST `/api/send`
-Full pipeline capable of handling messages of arbitrary length. The backend will automatically break the message into 4-symbol chunks, process each chunk through GF(3) LDPC, and return combined results.
-```json
-{
-  "message": "this is a longer text message",
-  "error_probability": 0.2
-}
-```
-Response includes:
-- `original_message`: Input message
-- `encoded`: GF(3) encoded codeword
-- `corrupted`: After adding noise
-- `decoded`: After error correction
-- `errors_introduced`: Number of errors added
-- `error_corrected`: Whether errors were detected
-- `success`: Overall correction success
+- GET `/api/codec/status` — current adaptive codec parameters (`iterations`, `damping`, `check_weight`).
 
-## 🧪 Example Usage
+- GET `/api/codec/logs` — recent codec events read from `logs/codec_events.jsonl`.
 
-### Via Web Frontend
-1. Enter "test" as message
-2. Set error rate to 0.20 (20%)
-3. Click "Start Full Process"
-4. System will:
-   - Encode "test" to 7 GF(3) symbols
-   - Add ~1-2 random errors
-   - Decode and correct errors
-   - Display results
+For quick experimentation you can curl or use Python `requests` against the running server.
 
-### Via Python (Direct API Call)
-```python
-import requests
+**Important files (developer map)**
+- `api/routes.py` — HTTP endpoints and the high-level pipeline orchestration.
+- `gf3/adaptive_codec.py` — adaptive codec, repetition selection, soft decoding, and parameter adaptation.
+- `gf3/codec.py` — baseline repetition codec implementations and helpers.
+- `gf3/interleaver.py` — interleave/deinterleave utilities.
+- `gf3/crypto.py` — symmetric encrypt/decrypt helpers used around the channel.
+- `gf3/crc.py` — CRC append/check helpers.
+- `gf3/utils.py` — misc helpers for converting messages to/from GF(3) symbols.
+- `semantic/semantic_extractor.py` — simple semantic extraction and summarization used when confidence is low.
+- `scripts/stress_test.py` — automated tester that drives the codec across bins and triggers adaptation.
 
-response = requests.post(
-    'http://localhost:8000/api/process',
-    json={
-        'message': 'hello',
-        'error_probability': 0.15
-    }
-)
+**Tuning & notes**
+- Repetition choices in `AdaptiveGF3Codec.select_repetition()` include small (11), medium (17), and very large values (101, 201). Larger R increases fault tolerance at the cost of bandwidth.
+- Decoder parameters in `AdaptiveGF3Codec` to tune:
+  - `iterations` (integer): number of decoding trials/passes
+  - `damping` (0.0–1.0): controls posterior smoothing and exploration
+  - `check_weight` (float): controls random flips/nudges during iterative decoding
+  - `max_iterations` (cap for `iterations`)
+- The codec records per-bin success/failure and adjusts these parameters automatically every ~10 trials per bin.
 
-result = response.json()
-print(f"Errors introduced: {result['errors_introduced']}")
-print(f"Correction successful: {result['success']}")
-```
+**Testing & validation**
+- Use `scripts/stress_test.py` to run many trials across error-rate bins; it will print codec parameter evolution and tail logs.
+- Use `/api/error-graph` to produce a quick accuracy vs. error-rate curve for a sample message.
 
-## 📈 Performance Characteristics
+**Development tips**
+- To add a new decoding strategy, implement it in `gf3/adaptive_codec.py` as a method returning `(decoded_symbols, instability_score)` and swap it into `decode_iterative()`.
+- If experimenting with different interleavers, update `gf3/interleaver.py` and ensure `encode()`/`decode()` use the same depth.
 
-| Metric | Value |
-|--------|-------|
-| Code Type | Linear Block LDPC |
-| Field | GF(3) |
-| Block Length (n) | 7 |
-| Information Length (k) | 4 |
-| Parity Bits (m) | 3 |
-| Code Rate (k/n) | 0.571 |
-| Error Correction Capability | Up to 1-2 errors per block |
+**Contributing**
+- Fork, create a feature branch, and submit a pull request. Describe the change and why it helps tolerance/performance.
 
-## 🔧 Customization
-
-### Change Code Parameters
-Edit `gf3_ldpc.py`:
-```python
-ldpc = GF3LDPC(message_length=6, codeword_length=10)  # Customize dimensions
-```
-
-### Modify Parity-Check Matrix
-In `GF3LDPC._create_parity_check_matrix()`:
-```python
-# Define your own H matrix
-H = np.array([
-    [1, 0, 1, ...],
-    [0, 1, 0, ...],
-    ...
-])
-```
-
-### Adjust Error Correction Algorithm
-Replace `decode_simple()` with `decode_iterative()` for advanced decoding.
-
-## 🐛 Troubleshooting
-
-### "Connection refused" error
-- Ensure backend is running: `python main.py`
-- Check if port 8000 is not in use: `netstat -an | findstr 8000`
-
-### CORS errors
-- Frontend must be on same origin or CORS is enabled (already configured)
-- Check browser console (F12) for detailed error messages
-
-### Low correction success rate
-- Reduce error probability (lower noise level)
-- Or increase code block length for better performance
-
-## 📚 References
-
-- **LDPC Codes**: D. J. C. MacKay, "Information Theory, Inference, and Learning Algorithms"
-- **Galois Fields**: R. J. McEliece, "Finite Fields for Computer Scientists and Engineers"
-- **Error Correction**: E. Huffman & V. Pless, "Fundamentals of Error-Correcting Codes"
-
-## 💡 Why FastAPI over Flask?
-
-| Aspect | FastAPI | Flask |
-|--------|---------|-------|
-| Speed | ⚡ Native async/await | Sequential |
-| Validation | ✅ Automatic (Pydantic) | Manual |
-| Documentation | 🔍 Auto-generated (Swagger) | Manual |
-| Learning Curve | Easy | Easier |
-| Performance | ~2-3x faster | Baseline |
-| Modern Stack | Python 3.7+ focused | General purpose |
-
-**Choice**: FastAPI provides better performance, cleaner code, and automatic API docs - ideal for this project.
-
-## 📝 Project Structure
-
-```
-GF3 demo/
-├── main.py              # FastAPI backend
-├── gf3_ldpc.py         # LDPC encoder/decoder
-├── index.html          # Web frontend
-├── requirements.txt    # Python dependencies
-└── README.md          # This file
-```
-
-## 🎓 Learning Path
-
-1. Start with the frontend's visual demo
-2. Read through `gf3_ldpc.py` to understand encoding/decoding
-3. Explore `main.py` to see API integration
-4. Experiment with different error rates
-5. Customize the code for your use case
-
-## 📄 License
-
-Educational Project - Free to use and modify
-
-## ✨ Features Implemented
-
-- ✅ GF(3) arithmetic operations
-- ✅ LDPC encoder with generator matrix
-- ✅ LDPC decoder with syndrome calculation
-- ✅ Iterative and simple decoding algorithms
-- ✅ Channel noise simulation
-- ✅ Error detection and correction
-- ✅ FastAPI REST backend
-- ✅ Interactive web frontend
-- ✅ Real-time visual feedback
-- ✅ Comprehensive API documentation
+**License**
+- Educational / permissive. Reuse and adapt freely; attribute improvements back to the repository if you can.
 
 ---
 
-**Ready to explore error correction? Run `python main.py` and open the demo! 🚀**
+If you want, I can:
+- add a short example script showing how to call `/api/send` from Python, or
+- run the stress test and summarize accuracy at 40% error rate.
+
+Happy to continue — tell me which you'd like next.

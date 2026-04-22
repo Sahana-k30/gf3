@@ -5,21 +5,25 @@ from gf3.interleaver import interleave, deinterleave
 class AdaptiveGF3Codec:
 
     def select_repetition(self, error_rate):
+        # stronger repetition choices to increase tolerance up to ~40% channel errors
         if error_rate <= 0.15:
             return 11
         elif error_rate <= 0.30:
             return 17
-        elif error_rate <= 0.45:
-            return 25
+        elif error_rate <= 0.40:
+            # large repetition for very noisy channels (~40% errors)
+            return 101
         else:
-            return 31
+            # extreme redundancy when channel is very bad
+            return 201
 
     def __init__(self):
         # self-optimizing hyperparameters
-        self.iterations = 1
-        self.damping = 0.3
-        self.check_weight = 1.0
-        self.max_iterations = 8
+        # increase default effort for hard channels
+        self.iterations = 2
+        self.damping = 0.35
+        self.check_weight = 1.1
+        self.max_iterations = 12
 
         # statistics: map bin -> {'trials', 'failures'}
         self.stats = {}
